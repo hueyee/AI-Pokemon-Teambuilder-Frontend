@@ -53,3 +53,7 @@ SHOWDOWN_DEX_PATH=/path/to/pokemon-showdown/dist/sim/dex node scripts/build-gen3
 ## Azure Static Web Apps
 
 This repo is buildless. Use the repository root as the app location and leave the build output path empty.
+
+The workflow must set `api_location: "api"` so Azure deploys the proxy functions for `/api/generate-team` and
+`/api/complete-team`. If `POST /api/complete-team` returns `405` with `Allow: GET, HEAD, OPTIONS`, the functions were
+not deployed and Azure is treating `/api/*` as static content.

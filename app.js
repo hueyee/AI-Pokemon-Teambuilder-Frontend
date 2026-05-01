@@ -46,8 +46,70 @@ const STAT_LABELS = {
 };
 
 const GEN3_SPECIES_BY_ID = Object.fromEntries(GEN3_DATA.species.map((species) => [species.id, species]));
+const GEN3_MOVES_BY_ID = Object.fromEntries(GEN3_DATA.moves.map((move) => [move.id, move]));
+const GEN3_ITEMS_BY_ID = Object.fromEntries(GEN3_DATA.items.map((item) => [item.id, item]));
+const GEN3_ABILITIES_BY_ID = Object.fromEntries(GEN3_DATA.abilities.map((ability) => [ability.id, ability]));
 const MAX_AUTOCOMPLETE_RESULTS = 10;
 const SPECIES_SUGGESTIONS = GEN3_DATA.species;
+const CHART_RESULT_LIMIT = 28;
+
+const MOVE_DETAILS = {
+  aerialace: ["Flying", "Physical", 60, "-", 32, "This move does not check accuracy."],
+  aromatherapy: ["Grass", "Status", "-", "-", 8, "Cures the user's party of major status conditions."],
+  batonpass: ["Normal", "Status", "-", "-", 64, "Switches out and passes stat changes and some effects."],
+  blizzard: ["Ice", "Special", 120, "70%", 8, "10% chance to freeze foe(s). Can't miss in Hail."],
+  bodypress: ["Fighting", "Physical", 80, "100%", 16, "Uses Defense instead of Attack. Not legal in Gen 3."],
+  bodyslam: ["Normal", "Physical", 85, "100%", 24, "30% chance to paralyze the target."],
+  brickbreak: ["Fighting", "Physical", 75, "100%", 24, "Destroys Reflect and Light Screen before damage."],
+  calmmind: ["Psychic", "Status", "-", "-", 32, "Raises the user's Sp. Atk and Sp. Def by 1."],
+  crunch: ["Dark", "Special", 80, "100%", 24, "20% chance to lower the target's Sp. Def by 1."],
+  curse: ["Ghost", "Status", "-", "-", 16, "Ghosts curse; others trade Speed for Attack and Defense."],
+  doubleedge: ["Normal", "Physical", 120, "100%", 24, "Has 33% recoil."],
+  dragonclaw: ["Dragon", "Special", 80, "100%", 24, "No additional effect."],
+  dragondance: ["Dragon", "Status", "-", "-", 32, "Raises the user's Attack and Speed by 1."],
+  drillpeck: ["Flying", "Physical", 80, "100%", 32, "No additional effect."],
+  earthquake: ["Ground", "Physical", 100, "100%", 16, "Hits adjacent Pokemon. Double damage on Dig."],
+  explosion: ["Normal", "Physical", 250, "100%", 8, "User faints. Target Defense is halved during damage."],
+  fireblast: ["Fire", "Special", 120, "85%", 8, "10% chance to burn the target."],
+  firepunch: ["Fire", "Special", 75, "100%", 24, "10% chance to burn the target."],
+  focuspunch: ["Fighting", "Physical", 150, "100%", 32, "Fails if the user takes damage before it hits."],
+  gigadrain: ["Grass", "Special", 60, "100%", 8, "User recovers 50% of the damage dealt."],
+  hiddenpowerbug: ["Bug", "Special", 70, "100%", 24, "Type varies by IVs."],
+  hiddenpowerflying: ["Flying", "Special", 70, "100%", 24, "Type varies by IVs."],
+  hiddenpowergrass: ["Grass", "Special", 70, "100%", 24, "Type varies by IVs."],
+  hiddenpowerground: ["Ground", "Special", 70, "100%", 24, "Type varies by IVs."],
+  hiddenpowerice: ["Ice", "Special", 70, "100%", 24, "Type varies by IVs."],
+  icebeam: ["Ice", "Special", 95, "100%", 16, "10% chance to freeze the target."],
+  icepunch: ["Ice", "Special", 75, "100%", 24, "10% chance to freeze the target."],
+  leechseed: ["Grass", "Status", "-", "90%", 16, "Seeds the target and heals the user's side each turn."],
+  meteormash: ["Steel", "Physical", 100, "85%", 16, "20% chance to raise the user's Attack by 1."],
+  protect: ["Normal", "Status", "-", "-", 16, "Protects the user this turn. Chance fails if repeated."],
+  psychic: ["Psychic", "Special", 90, "100%", 16, "10% chance to lower the target's Sp. Def by 1."],
+  pursuit: ["Dark", "Special", 40, "100%", 32, "Power doubles if the target is switching out."],
+  rapidspin: ["Normal", "Physical", 20, "100%", 64, "Frees user from hazards and trapping effects."],
+  recover: ["Normal", "Status", "-", "-", 32, "Heals the user by 50% of its max HP."],
+  rest: ["Psychic", "Status", "-", "-", 16, "User sleeps for 2 turns and restores HP/status."],
+  roar: ["Normal", "Status", "-", "100%", 32, "Forces the target to switch to a random ally."],
+  rockslide: ["Rock", "Physical", 75, "90%", 16, "30% chance to make the target flinch."],
+  seismictoss: ["Fighting", "Physical", "-", "100%", 32, "Deals damage equal to the user's level."],
+  shadowball: ["Ghost", "Physical", 80, "100%", 24, "20% chance to lower the target's Sp. Def by 1."],
+  sleeptalk: ["Normal", "Status", "-", "-", 16, "Uses one of the user's moves while asleep."],
+  softboiled: ["Normal", "Status", "-", "-", 16, "Heals the user by 50% of its max HP."],
+  spikes: ["Ground", "Status", "-", "-", 32, "Sets a layer of Spikes on the opposing side."],
+  substitute: ["Normal", "Status", "-", "-", 16, "Uses 25% HP to create a substitute."],
+  superpower: ["Fighting", "Physical", 120, "100%", 8, "Lowers the user's Attack and Defense by 1."],
+  surf: ["Water", "Special", 95, "100%", 24, "Hits adjacent Pokemon."],
+  taunt: ["Dark", "Status", "-", "100%", 32, "Target cannot use status moves for 2 turns."],
+  thunder: ["Electric", "Special", 120, "70%", 16, "30% chance to paralyze. Can't miss in Rain."],
+  thunderbolt: ["Electric", "Special", 95, "100%", 24, "10% chance to paralyze the target."],
+  thunderpunch: ["Electric", "Special", 75, "100%", 24, "10% chance to paralyze the target."],
+  thundershock: ["Electric", "Special", 40, "100%", 48, "10% chance to paralyze the target."],
+  thunderwave: ["Electric", "Status", "-", "100%", 32, "Paralyzes the target."],
+  toxic: ["Poison", "Status", "-", "85%", 16, "Badly poisons the target."],
+  waterfall: ["Water", "Special", 80, "100%", 24, "No additional effect in Gen 3."],
+  willowisp: ["Fire", "Status", "-", "75%", 24, "Burns the target."],
+  wish: ["Normal", "Status", "-", "-", 16, "Next turn, heals the active ally by 50% of user's max HP."],
+};
 
 const DEMO_SETS = [
   {
@@ -156,6 +218,7 @@ const state = {
 };
 
 let activeSpeciesAutocomplete = null;
+let activeChartInput = null;
 
 const els = {
   modeButtons: document.querySelectorAll("[data-mode]"),
@@ -328,6 +391,233 @@ function typeIcons(species) {
   return types
     .map((type) => `<span class="typeicon type-${type.toLowerCase()}">${escapeHtml(type)}</span>`)
     .join("");
+}
+
+function badge(type, classPrefix = "type") {
+  return `<span class="${classPrefix}-badge ${classPrefix}-${normalize(type)}">${escapeHtml(type)}</span>`;
+}
+
+function moveDetails(moveName) {
+  const key = normalize(moveName);
+  const detail = MOVE_DETAILS[key];
+  const move = GEN3_MOVES_BY_ID[key] || GEN3_DATA.moves.find((entry) => normalize(entry.name) === key);
+  if (!detail) {
+    return {
+      id: move?.id || key,
+      name: move?.name || moveName,
+      type: "Normal",
+      category: "Status",
+      power: "-",
+      accuracy: "-",
+      pp: "-",
+      desc: "Gen 3 move data.",
+    };
+  }
+  return {
+    id: move?.id || key,
+    name: move?.name || moveName,
+    type: detail[0],
+    category: detail[1],
+    power: detail[2],
+    accuracy: detail[3],
+    pp: detail[4],
+    desc: detail[5],
+  };
+}
+
+function currentMoveNames() {
+  return new Set(
+    state.slots[state.selectedSlot].moves
+      .map((move) => normalize(move))
+      .filter(Boolean),
+  );
+}
+
+function chartKindForInput(input) {
+  if (!input) return "overview";
+  if (input.name === "species") return "pokemon";
+  if (input.name === "item") return "item";
+  if (input.name === "ability") return "ability";
+  if (input.name.startsWith("move")) return "move";
+  return "overview";
+}
+
+function scoreNamedEntry(entry, query) {
+  const id = normalize(entry.id || entry.name);
+  const name = normalize(entry.name);
+  if (!query) return entry.num || 999;
+  if (id === query || name === query) return 0;
+  if (id.startsWith(query) || name.startsWith(query)) return 1;
+  if (id.includes(query) || name.includes(query)) return 2;
+  return -1;
+}
+
+function matchedEntries(entries, query, limit = CHART_RESULT_LIMIT) {
+  return entries
+    .map((entry) => ({ entry, score: scoreNamedEntry(entry, query) }))
+    .filter(({ score }) => score >= 0)
+    .sort((a, b) => a.score - b.score || (a.entry.num || 999) - (b.entry.num || 999) || a.entry.name.localeCompare(b.entry.name))
+    .slice(0, limit)
+    .map(({ entry }) => entry);
+}
+
+function resetResultChart(title, countText = "") {
+  els.candidateList.replaceChildren();
+  const heading = document.createElement("li");
+  heading.className = "result result-heading";
+  heading.innerHTML = `<h3 id="modeTitle">${escapeHtml(title)}</h3><span class="status-chip" id="resultCount">${escapeHtml(
+    countText,
+  )}</span>`;
+  els.candidateList.append(heading);
+  els.modeTitle = heading.querySelector("#modeTitle");
+  els.resultCount = heading.querySelector("#resultCount");
+}
+
+function appendSortRow(kind) {
+  const li = document.createElement("li");
+  li.className = "result";
+  li.innerHTML =
+    kind === "move"
+      ? `<div class="sortrow move-sortrow"><button class="sortcol movenamesortcol" type="button">Name</button><button class="sortcol movetypesortcol" type="button">Type</button><button class="sortcol movetypesortcol" type="button">Cat</button><button class="sortcol powersortcol" type="button">Pow</button><button class="sortcol accuracysortcol" type="button">Acc</button><button class="sortcol ppsortcol" type="button">PP</button><span></span></div>`
+      : `<div class="sortrow"><button class="sortcol movenamesortcol" type="button">Name</button><button class="sortcol movetypesortcol" type="button">Type</button><button class="sortcol movetypesortcol" type="button">Info</button><button class="sortcol powersortcol" type="button">Base</button><button class="sortcol accuracysortcol" type="button">Role</button><button class="sortcol ppsortcol" type="button">Pick</button></div>`;
+  els.candidateList.append(li);
+}
+
+function appendSection(title) {
+  const li = document.createElement("li");
+  li.className = "result result-section";
+  li.innerHTML = `<h3>${escapeHtml(title)}</h3>`;
+  els.candidateList.append(li);
+}
+
+function renderContextChart(input = activeChartInput) {
+  activeChartInput = input || activeChartInput;
+  els.teamChart.querySelectorAll(".active-chart-input").forEach((node) => node.classList.remove("active-chart-input"));
+  if (activeChartInput) activeChartInput.classList.add("active-chart-input");
+
+  const kind = chartKindForInput(activeChartInput);
+  if (kind === "move") return renderMoveChart(activeChartInput);
+  if (kind === "pokemon") return renderPokemonChart(activeChartInput);
+  if (kind === "item") return renderSimpleEntryChart("Items", activeChartInput, GEN3_DATA.items, GEN3_ITEMS_BY_ID);
+  if (kind === "ability") {
+    return renderSimpleEntryChart("Abilities", activeChartInput, GEN3_DATA.abilities, GEN3_ABILITIES_BY_ID);
+  }
+  return renderOverviewChart();
+}
+
+function renderMoveChart(input) {
+  const query = normalize(input?.value || "");
+  const selectedMoves = currentMoveNames();
+  const selected = [...selectedMoves]
+    .map((id) => GEN3_MOVES_BY_ID[id])
+    .filter(Boolean);
+  const entries = matchedEntries(GEN3_DATA.moves, query).filter((move) => !selectedMoves.has(normalize(move.name)));
+  resetResultChart("Moves", `${entries.length}${query ? " matches" : " shown"}`);
+  appendSortRow("move");
+  if (selected.length) appendSection("Chosen moves");
+  selected.forEach((move) => appendMoveResult(move, true));
+  appendSection("Moves");
+  entries.forEach((move) => appendMoveResult(move, false));
+}
+
+function appendMoveResult(move, selected) {
+  const details = moveDetails(move.name);
+  const li = document.createElement("li");
+  li.className = "result";
+  li.innerHTML = `<button class="result-button${selected ? " cur" : ""}" type="button" data-value="${escapeHtml(move.name)}">
+    <span class="col movenamecol">${escapeHtml(move.name)}</span>
+    <span class="col typecol">${badge(details.type, "type")}</span>
+    <span class="col typecol">${badge(details.category, "category")}</span>
+    <span class="col labelcol"><em>Power</em><br>${escapeHtml(details.power)}</span>
+    <span class="col widelabelcol"><em>Accuracy</em><br>${escapeHtml(details.accuracy)}</span>
+    <span class="col pplabelcol"><em>PP</em><br>${escapeHtml(details.pp)}</span>
+    <span class="col movedesccol">${escapeHtml(details.desc)}</span>
+  </button>`;
+  li.querySelector("button").addEventListener("click", () => commitChartValue(move.name));
+  els.candidateList.append(li);
+}
+
+function renderPokemonChart(input) {
+  const query = normalize(input?.value || "");
+  const entries = matchedEntries(GEN3_DATA.species, query, CHART_RESULT_LIMIT);
+  resetResultChart("Pokemon", `${entries.length}${query ? " matches" : " shown"}`);
+  appendSortRow("pokemon");
+  appendSection("Pokemon");
+  entries.forEach((species) => {
+    const li = document.createElement("li");
+    li.className = "result";
+    const stats = Object.values(species.baseStats);
+    const total = stats.reduce((sum, value) => sum + value, 0);
+    li.innerHTML = `<button class="result-button" type="button" data-value="${escapeHtml(species.name)}">
+      <span class="col speciesnamecol"><span class="picon" style="background-position:${iconPosition(species.name)}"></span>${escapeHtml(species.name)}</span>
+      <span class="col typecol">${species.types.map((type) => badge(type, "type")).join("")}</span>
+      <span class="col labelcol"><em>No.</em><br>${species.num}</span>
+      <span class="col widelabelcol"><em>BST</em><br>${total}</span>
+      <span class="col pplabelcol"><em>Spe</em><br>${species.baseStats.spe}</span>
+      <span class="col speciesdesccol">${escapeHtml(species.abilities.join(" / "))}</span>
+    </button>`;
+    li.querySelector("button").addEventListener("click", () => commitChartValue(species.name));
+    els.candidateList.append(li);
+  });
+}
+
+function renderSimpleEntryChart(title, input, entries, byId) {
+  const query = normalize(input?.value || "");
+  const selectedValue = normalize(input?.value || "");
+  const matched = matchedEntries(entries, query, CHART_RESULT_LIMIT);
+  resetResultChart(title, `${matched.length}${query ? " matches" : " shown"}`);
+  appendSortRow("entry");
+  if (selectedValue && byId[selectedValue]) {
+    appendSection("Current");
+    appendSimpleResult(byId[selectedValue], true);
+  }
+  appendSection(title);
+  matched.forEach((entry) => appendSimpleResult(entry, false));
+}
+
+function appendSimpleResult(entry, selected) {
+  const li = document.createElement("li");
+  li.className = "result";
+  li.innerHTML = `<button class="result-button${selected ? " cur" : ""}" type="button" data-value="${escapeHtml(entry.name)}">
+    <span class="col itemnamecol">${escapeHtml(entry.name)}</span>
+    <span class="col typecol"></span>
+    <span class="col labelcol"><em>No.</em><br>${escapeHtml(entry.num || "-")}</span>
+    <span class="col widelabelcol"></span>
+    <span class="col pplabelcol"></span>
+    <span class="col movedesccol">Click to use this value.</span>
+  </button>`;
+  li.querySelector("button").addEventListener("click", () => commitChartValue(entry.name));
+  els.candidateList.append(li);
+}
+
+function renderOverviewChart() {
+  resetResultChart(state.mode === "generate" ? "Team Generator" : "Mask Fill", `${state.candidates.length} candidates`);
+  if (state.candidates.length) {
+    renderCandidates(state.candidates);
+    return;
+  }
+  els.candidateList.append(els.messageCard);
+  setMessage("Focus Pokemon, item, ability, or move fields to browse the picker.");
+}
+
+function commitChartValue(value) {
+  if (!activeChartInput) return;
+  activeChartInput.value = value;
+  updateSlotFromInput(activeChartInput);
+  const next = nextChartInput(activeChartInput);
+  if (next) {
+    next.focus();
+    next.select();
+    renderContextChart(next);
+  } else {
+    renderContextChart(activeChartInput);
+  }
+}
+
+function nextChartInput(input) {
+  const fields = [...els.teamChart.querySelectorAll(".chartinput")];
+  const index = fields.indexOf(input);
+  return fields[index + 1] || null;
 }
 
 function slotToShowdown(slot) {
@@ -510,7 +800,7 @@ function renderSelectedSet() {
     <div class="setchart" style="${sprite ? `background-image:url(${sprite})` : ""}">
       <div class="setcol setcol-icon">
         <div class="setcell setcell-pokemon">
-          <label>Pokemon</label>
+          <label>Pokémon</label>
           <div class="autocomplete">
             <input type="text" name="species" class="textbox chartinput" value="${escapeHtml(
               slot.species,
@@ -590,6 +880,10 @@ function renderSelectedSet() {
   </li>`;
 
   els.teamChart.querySelectorAll(".chartinput").forEach((input) => {
+    input.addEventListener("focus", () => renderContextChart(input));
+    input.addEventListener("keyup", () => {
+      if (input === activeChartInput) renderContextChart(input);
+    });
     input.addEventListener("input", () => updateSlotFromInput(input));
   });
   setupSpeciesAutocomplete();
@@ -615,6 +909,9 @@ function updateSlotFromInput(input) {
   renderTeambar();
   if (["species", "nature", "evs"].includes(name)) updateSelectedSetPreview(slot);
   if (name === "species" && activeSpeciesAutocomplete?.input === input) activeSpeciesAutocomplete.renderMenu();
+  if (input === activeChartInput || ["item", "ability"].includes(name) || name.startsWith("move")) {
+    renderContextChart(input);
+  }
 }
 
 function updateSelectedSetPreview(slot) {
@@ -661,6 +958,7 @@ function setupSpeciesAutocomplete() {
     syncExportQuietly();
     renderTeambar();
     updateSelectedSetPreview(state.slots[state.selectedSlot]);
+    renderContextChart(input);
     closeMenu();
   };
 
@@ -760,17 +1058,12 @@ function renderMode() {
   const isGenerate = state.mode === "generate";
   els.runButton.textContent = isGenerate ? "Generate Team" : "Complete Team";
   els.modeTitle.textContent = isGenerate ? "Team Generator" : "Mask Fill";
-  els.modeSubtitle.textContent = isGenerate
-    ? "The model starts from an empty shell."
-    : "Empty team slots are treated as masked positions.";
   els.numSamples.value = isGenerate ? "256" : "64";
+  if (!activeChartInput) renderContextChart();
 }
 
 function renderCandidates(candidates) {
-  const heading = els.candidateList.querySelector(".result-heading");
-  els.candidateList.innerHTML = "";
-  els.candidateList.append(heading);
-  els.resultCount.textContent = `${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`;
+  resetResultChart("Model Results", `${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`);
 
   if (!candidates.length) {
     els.candidateList.append(els.messageCard);
@@ -786,13 +1079,13 @@ function renderCandidates(candidates) {
     li.innerHTML = `<div class="candidate-body">
       <div class="candidate-head">
         <h3>Candidate ${index + 1}</h3>
-        <span class="result-actions">
-          <button class="button" type="button" data-load="${index}">Load</button>
-          <button class="button" type="button" data-copy="${index}">Copy</button>
-        </span>
+        <div class="candidate-meta">Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
       </div>
-      <div class="candidate-meta">Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
-      <pre>${escapeHtml(candidate.showdown || JSON.stringify(candidate, null, 2))}</pre>
+      <span class="candidate-actions">
+        <button class="button" type="button" data-load="${index}">Load</button>
+        <button class="button" type="button" data-copy="${index}">Copy</button>
+      </span>
+      <pre class="candidate-preview">${escapeHtml(candidate.showdown || JSON.stringify(candidate, null, 2))}</pre>
     </div>`;
     li.querySelector("[data-load]").addEventListener("click", () => loadCandidate(candidate));
     li.querySelector("[data-copy]").addEventListener("click", () => copyText(candidate.showdown || ""));
@@ -801,8 +1094,10 @@ function renderCandidates(candidates) {
 }
 
 function renderAll() {
+  activeChartInput = null;
   renderTeambar();
   renderSelectedSet();
+  renderContextChart();
 }
 
 function loadCandidate(candidate) {

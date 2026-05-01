@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="teamwrapper">
+    <main class="ps-room ps-room-light scrollable tiny-layout" id="room-teambuilder">
+      <div class="teamwrapper">
       <div class="pad">
         <button name="back" class="button" type="button">‹ Team</button>
         <strong class="builder-title">AI Gen 3 OU Teambuilder</strong>
@@ -28,23 +29,38 @@
 
       <div class="builder-grid">
         <div class="team-main">
-          <div class="toolbar">
-            <div>
-              <h2 id="modeTitle">Mask Fill</h2>
-              <p id="modeSubtitle">Empty team slots are treated as masked positions.</p>
-            </div>
-            <div class="toolbar-actions">
-              <button class="button" id="sampleButton" type="button">Sample</button>
-              <button class="button" id="clearButton" type="button">Clear</button>
-            </div>
-          </div>
-
           <div class="teamchartbox individual">
             <ol class="teamchart" id="teamChart"></ol>
           </div>
         </div>
 
         <aside class="side-column" aria-label="Results and import export">
+          <div class="teambuilder-results chart-results" aria-live="polite">
+            <ul class="utilichart" id="candidateList">
+              <li class="result result-heading">
+                <h3 id="modeTitle">Mask Fill</h3>
+                <span class="status-chip" id="resultCount">0 candidates</span>
+              </li>
+              <li class="result message-result" id="messageCard">Add a partial team or generate from scratch.</li>
+            </ul>
+          </div>
+
+          <div class="teambuilder-pokemon-import">
+            <div class="pokemonedit-buttons">
+              <button id="importButton" class="button" type="button">‹ Import</button>
+              <button id="exportButton" class="button" type="button">Export</button>
+              <button class="button" id="sampleButton" type="button">Sample</button>
+              <button class="button" id="clearButton" type="button">Clear</button>
+            </div>
+            <textarea
+              id="showdownText"
+              class="pokemonedit textbox"
+              rows="12"
+              spellcheck="false"
+              placeholder="Tyranitar @ Leftovers&#10;Ability: Sand Stream&#10;Adamant Nature&#10;- Rock Slide&#10;- Earthquake"
+            ></textarea>
+          </div>
+
           <div class="teambuilder-results settings-results">
             <ul class="utilichart">
               <li class="result result-heading">
@@ -71,31 +87,8 @@
               </li>
             </ul>
           </div>
-
-          <div class="teambuilder-pokemon-import">
-            <div class="pokemonedit-buttons">
-              <button id="importButton" class="button" type="button">‹ Import</button>
-              <button id="exportButton" class="button" type="button">Export</button>
-            </div>
-            <textarea
-              id="showdownText"
-              class="pokemonedit textbox"
-              rows="14"
-              spellcheck="false"
-              placeholder="Tyranitar @ Leftovers&#10;Ability: Sand Stream&#10;Adamant Nature&#10;- Rock Slide&#10;- Earthquake"
-            ></textarea>
-          </div>
-
-          <div class="teambuilder-results model-results" aria-live="polite">
-            <ul class="utilichart" id="candidateList">
-              <li class="result result-heading">
-                <h3>Model Results</h3>
-                <span class="status-chip" id="resultCount">0 candidates</span>
-              </li>
-              <li class="result message-result" id="messageCard">Add a partial team or generate from scratch.</li>
-            </ul>
-          </div>
         </aside>
+      </div>
       </div>
     </main>
 
