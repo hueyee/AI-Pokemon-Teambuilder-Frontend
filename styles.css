@@ -272,6 +272,61 @@ label {
   outline: 2px solid rgba(47, 102, 153, 0.18);
 }
 
+.autocomplete {
+  position: relative;
+}
+
+.autocomplete-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 254px;
+  overflow-y: auto;
+  border: 1px solid #7a8794;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(27, 37, 48, 0.22);
+}
+
+.autocomplete-option {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid #d4dbe2;
+  padding: 2px 7px 4px 1px;
+  color: #1f2832;
+  background: #fff;
+  text-align: left;
+}
+
+.autocomplete-option:last-child {
+  border-bottom: 0;
+}
+
+.autocomplete-option:hover,
+.autocomplete-option.active {
+  background: #d9ecff;
+}
+
+.autocomplete-option span:not(.picon) {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-option small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .setchart {
   display: grid;
   grid-template-columns: 178px minmax(210px, 1fr) minmax(180px, 1fr) 218px;

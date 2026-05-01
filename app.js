@@ -46,6 +46,8 @@ const STAT_LABELS = {
 };
 
 const GEN3_SPECIES_BY_ID = Object.fromEntries(GEN3_DATA.species.map((species) => [species.id, species]));
+const MAX_AUTOCOMPLETE_RESULTS = 10;
+const SPECIES_SUGGESTIONS = GEN3_DATA.species;
 
 const DEMO_SETS = [
   {
@@ -152,6 +154,8 @@ const state = {
   slots: Array.from({ length: 6 }, () => emptySlot()),
   candidates: [],
 };
+
+let activeSpeciesAutocomplete = null;
 
 const els = {
   modeButtons: document.querySelectorAll("[data-mode]"),
@@ -314,6 +318,11 @@ function statRows(slot) {
     .join("");
 }
 
+function statPanelHtml(slot) {
+  return `<span class="statrow statrow-head"><label></label><span></span><em>Base</em><strong>EV</strong><b>Stat</b><small></small></span>
+    ${statRows(slot)}`;
+}
+
 function typeIcons(species) {
   const types = getSpeciesData(species)?.types || [];
   return types
@@ -450,7 +459,6 @@ function populateDatalist(id, values) {
 }
 
 function initReferenceData() {
-  populateDatalist("#speciesList", GEN3_DATA.species.map((species) => species.name));
   populateDatalist("#itemList", GEN3_DATA.items.map((item) => item.name));
   populateDatalist("#abilityList", GEN3_DATA.abilities.map((ability) => ability.name));
   populateDatalist("#moveList", GEN3_DATA.moves.map((move) => move.name));
@@ -503,9 +511,12 @@ function renderSelectedSet() {
       <div class="setcol setcol-icon">
         <div class="setcell setcell-pokemon">
           <label>Pokemon</label>
-          <input type="text" name="species" class="textbox chartinput" list="speciesList" value="${escapeHtml(
-            slot.species,
-          )}" autocomplete="off">
+          <div class="autocomplete">
+            <input type="text" name="species" class="textbox chartinput" value="${escapeHtml(
+              slot.species,
+            )}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="speciesAutocomplete">
+            <div class="autocomplete-menu" id="speciesAutocomplete" role="listbox" hidden></div>
+          </div>
         </div>
       </div>
       <div class="setcol setcol-details">
@@ -571,8 +582,7 @@ function renderSelectedSet() {
         <div class="setrow">
           <label>Stats</label>
           <button class="textbox setstats" name="stats" type="button">
-            <span class="statrow statrow-head"><label></label><span></span><em>Base</em><strong>EV</strong><b>Stat</b><small></small></span>
-            ${statRows(slot)}
+            ${statPanelHtml(slot)}
           </button>
         </div>
       </div>
@@ -582,6 +592,7 @@ function renderSelectedSet() {
   els.teamChart.querySelectorAll(".chartinput").forEach((input) => {
     input.addEventListener("input", () => updateSlotFromInput(input));
   });
+  setupSpeciesAutocomplete();
   els.teamChart.querySelector("[name='copySet']").addEventListener("click", () => copyText(slotToShowdown(slot)));
   els.teamChart.querySelector("[name='importSet']").addEventListener("click", () => els.showdownText.focus());
   els.teamChart.querySelector("[name='moveSet']").addEventListener("click", moveSelectedSlot);
@@ -602,7 +613,133 @@ function updateSlotFromInput(input) {
   }
   syncExportQuietly();
   renderTeambar();
-  if (["species", "nature", "evs"].includes(name)) renderSelectedSet();
+  if (["species", "nature", "evs"].includes(name)) updateSelectedSetPreview(slot);
+  if (name === "species" && activeSpeciesAutocomplete?.input === input) activeSpeciesAutocomplete.renderMenu();
+}
+
+function updateSelectedSetPreview(slot) {
+  const setchart = els.teamChart.querySelector(".setchart");
+  const nicknameInput = els.teamChart.querySelector("[name='nickname']");
+  const typeIconContainer = els.teamChart.querySelector(".setcell-typeicons");
+  const statsButton = els.teamChart.querySelector(".setstats");
+  const sprite = spriteUrl(slot.species);
+
+  if (setchart) setchart.style.backgroundImage = sprite ? `url(${sprite})` : "";
+  if (nicknameInput) nicknameInput.placeholder = slot.species || "Nickname";
+  if (typeIconContainer) typeIconContainer.innerHTML = typeIcons(slot.species);
+  if (statsButton) statsButton.innerHTML = statPanelHtml(slot);
+}
+
+function setupSpeciesAutocomplete() {
+  const input = els.teamChart.querySelector("[name='species']");
+  const menu = els.teamChart.querySelector(".autocomplete-menu");
+  if (!input || !menu) return;
+
+  let matches = [];
+  let activeIndex = -1;
+
+  const closeMenu = () => {
+    menu.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    activeIndex = -1;
+  };
+
+  const setActive = (index) => {
+    activeIndex = index;
+    menu.querySelectorAll(".autocomplete-option").forEach((option, optionIndex) => {
+      const active = optionIndex === activeIndex;
+      option.classList.toggle("active", active);
+      option.setAttribute("aria-selected", String(active));
+      if (active) input.setAttribute("aria-activedescendant", option.id);
+    });
+  };
+
+  const commit = (speciesName) => {
+    input.value = speciesName;
+    state.slots[state.selectedSlot].species = speciesName;
+    syncExportQuietly();
+    renderTeambar();
+    updateSelectedSetPreview(state.slots[state.selectedSlot]);
+    closeMenu();
+  };
+
+  const renderMenu = () => {
+    matches = speciesMatches(input.value);
+    menu.innerHTML = matches
+      .map(
+        (species, index) => `<button class="autocomplete-option" id="species-option-${index}" type="button" role="option" aria-selected="false">
+          <span class="picon" style="background-position:${iconPosition(species.name)}"></span>
+          <span>${escapeHtml(species.name)}</span>
+          <small>${escapeHtml(species.types.join(" / "))}</small>
+        </button>`,
+      )
+      .join("");
+
+    if (!matches.length) {
+      closeMenu();
+      return;
+    }
+
+    menu.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    setActive(0);
+
+    menu.querySelectorAll(".autocomplete-option").forEach((option, index) => {
+      option.addEventListener("mousedown", (event) => event.preventDefault());
+      option.addEventListener("click", () => commit(matches[index].name));
+    });
+  };
+
+  input.addEventListener("focus", renderMenu);
+  input.addEventListener("keydown", (event) => {
+    if (menu.hidden && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+      renderMenu();
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      setActive((activeIndex + 1) % matches.length);
+      event.preventDefault();
+    } else if (event.key === "ArrowUp") {
+      setActive((activeIndex - 1 + matches.length) % matches.length);
+      event.preventDefault();
+    } else if (event.key === "Enter" && !menu.hidden && matches[activeIndex]) {
+      commit(matches[activeIndex].name);
+      event.preventDefault();
+    } else if (event.key === "Escape") {
+      closeMenu();
+      event.preventDefault();
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    const exactMatch = GEN3_SPECIES_BY_ID[speciesKey(input.value)];
+    if (exactMatch && input.value !== exactMatch.name) commit(exactMatch.name);
+    window.setTimeout(closeMenu, 80);
+  });
+
+  activeSpeciesAutocomplete = { input, renderMenu, closeMenu };
+}
+
+function speciesMatches(value) {
+  const query = normalize(value);
+  return SPECIES_SUGGESTIONS.map((species) => ({ species, score: speciesMatchScore(species, query) }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => a.score - b.score || a.species.name.length - b.species.name.length || a.species.name.localeCompare(b.species.name))
+    .slice(0, MAX_AUTOCOMPLETE_RESULTS)
+    .map((entry) => entry.species);
+}
+
+function speciesMatchScore(species, query) {
+  const nameKey = speciesKey(species.name);
+  const idKey = speciesKey(species.id);
+  if (!query) return species.num + 3;
+  if (idKey === query || nameKey === query) return 0;
+  if (nameKey.startsWith(query) || idKey.startsWith(query)) return 1;
+  if (nameKey.includes(query) || idKey.includes(query)) return 2;
+  return -1;
 }
 
 function moveSelectedSlot() {
