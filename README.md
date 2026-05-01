@@ -14,10 +14,23 @@ Then open:
 http://127.0.0.1:3000
 ```
 
-The app runs in demo mode until both fields are set:
+The app defaults to:
 
-- Backend URL, for example `http://127.0.0.1:8000`
-- API Key, sent as `x-api-key`
+- Backend URL: `https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net`
+- API Key: `key`, sent as `x-api-key`
+
+The browser stores edits to those fields in localStorage. Because this is a static frontend, any key used directly by the browser is visible to users. If the key becomes a real secret, put a small proxy/API layer in front of the model backend rather than shipping the secret in static assets.
+
+For deployment-time configuration, define `window.APP_CONFIG` before `app.js` runs:
+
+```html
+<script>
+  window.APP_CONFIG = {
+    backendUrl: "https://your-backend.example",
+    apiKey: "key"
+  };
+</script>
+```
 
 ## Backend contract
 

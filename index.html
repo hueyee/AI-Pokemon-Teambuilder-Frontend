@@ -11,8 +11,11 @@
     <main class="app-shell">
       <section class="topbar" aria-label="Team controls">
         <div class="brand-block">
-          <span class="format-pill">ADV OU</span>
-          <h1>Gen 3 Team Builder</h1>
+          <span class="ps-mark">PS</span>
+          <div>
+            <h1>Pokemon Showdown</h1>
+            <span class="format-pill">AI Gen 3 OU Teambuilder</span>
+          </div>
         </div>
 
         <div class="mode-control" role="tablist" aria-label="Builder mode">
@@ -27,6 +30,12 @@
         <button class="primary-action" id="runButton" type="button">Complete Team</button>
       </section>
 
+      <nav class="ps-tabs" aria-label="Builder sections">
+        <button class="ps-tab active" type="button">Teambuilder</button>
+        <button class="ps-tab" type="button">Import/Export</button>
+        <button class="ps-tab" type="button">Model Results</button>
+      </nav>
+
       <section class="workspace">
         <aside class="sidebar" aria-label="Settings and import export">
           <div class="panel settings-panel">
@@ -36,7 +45,7 @@
             </div>
             <label>
               Backend URL
-              <input id="backendUrl" type="url" placeholder="http://127.0.0.1:8000" autocomplete="off" />
+              <input id="backendUrl" type="url" autocomplete="off" />
             </label>
             <label>
               API Key
@@ -97,6 +106,7 @@
     <template id="slotTemplate">
       <article class="slot-card">
         <div class="slot-head">
+          <span class="slot-ball" aria-hidden="true"></span>
           <div>
             <span class="slot-label"></span>
             <h3 class="slot-name">Masked Slot</h3>

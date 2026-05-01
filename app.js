@@ -26,6 +26,11 @@ const NATURES = [
   "Quirky",
 ];
 
+const DEFAULT_CONFIG = {
+  backendUrl: "https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net",
+  apiKey: "key",
+};
+
 const DEMO_SETS = [
   {
     species: "Tyranitar",
@@ -254,6 +259,19 @@ function cleanSpeciesName(value) {
 function setStatus(kind, text) {
   els.connectionState.className = `status-chip ${kind}`;
   els.connectionState.textContent = text;
+}
+
+function refreshConnectionStatus() {
+  const live = Boolean(els.backendUrl.value.trim() && els.apiKey.value.trim());
+  setStatus(live ? "live" : "demo", live ? "Live" : "Demo");
+}
+
+function initConfig() {
+  const config = window.APP_CONFIG || {};
+  els.backendUrl.value =
+    localStorage.getItem("pokemonBuilder.backendUrl") || config.backendUrl || DEFAULT_CONFIG.backendUrl;
+  els.apiKey.value = localStorage.getItem("pokemonBuilder.apiKey") || config.apiKey || DEFAULT_CONFIG.apiKey;
+  refreshConnectionStatus();
 }
 
 function setMessage(message, isError = false) {
@@ -589,13 +607,16 @@ function bindEvents() {
 
   [els.backendUrl, els.apiKey].forEach((input) => {
     input.addEventListener("input", () => {
-      setStatus(els.backendUrl.value.trim() && els.apiKey.value.trim() ? "live" : "demo", els.backendUrl.value.trim() && els.apiKey.value.trim() ? "Live" : "Demo");
+      const key = input === els.backendUrl ? "pokemonBuilder.backendUrl" : "pokemonBuilder.apiKey";
+      localStorage.setItem(key, input.value.trim());
+      refreshConnectionStatus();
     });
   });
 }
 
 initReferenceData();
+initConfig();
 bindEvents();
 renderMode();
 renderTeam();
-renderCandidates([]);
+els.resultCount.textContent = "0 candidates";
