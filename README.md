@@ -39,6 +39,16 @@ For deployment-time configuration, define `window.APP_CONFIG` before `app.js` ru
 
 Both use `format: "gen3ou"`, `num_candidates`, and `num_samples`. Completion sends Showdown text from the filled builder slots.
 
+## Gen 3 reference data
+
+Autocomplete and stat/type data are generated from Pokemon Showdown's `Dex.mod("gen3")` output and committed in `gen3-data.js`.
+
+To refresh it after downloading or installing Pokemon Showdown:
+
+```bash
+SHOWDOWN_DEX_PATH=/path/to/pokemon-showdown/dist/sim/dex node scripts/build-gen3-data.cjs
+```
+
 ## Azure Static Web Apps
 
 This repo is buildless. Use the repository root as the app location and leave the build output path empty.

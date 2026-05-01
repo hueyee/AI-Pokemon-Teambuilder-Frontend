@@ -1,3 +1,5 @@
+import { GEN3_DATA } from "./gen3-data.js";
+
 const NATURES = [
   "Hardy",
   "Lonely",
@@ -31,20 +33,17 @@ const DEFAULT_CONFIG = {
   apiKey: "key",
 };
 
-const TYPE_MAP = {
-  tyranitar: ["Rock", "Dark"],
-  skarmory: ["Steel", "Flying"],
-  swampert: ["Water", "Ground"],
-  blissey: ["Normal"],
-  gengar: ["Ghost", "Poison"],
-  metagross: ["Steel", "Psychic"],
-  salamence: ["Dragon", "Flying"],
-  zapdos: ["Electric", "Flying"],
-  dugtrio: ["Ground"],
-  starmie: ["Water", "Psychic"],
-  celebi: ["Psychic", "Grass"],
-  jirachi: ["Steel", "Psychic"],
+const STAT_KEYS = ["hp", "atk", "def", "spa", "spd", "spe"];
+const STAT_LABELS = {
+  hp: "HP",
+  atk: "Atk",
+  def: "Def",
+  spa: "SpA",
+  spd: "SpD",
+  spe: "Spe",
 };
+
+const GEN3_SPECIES_BY_ID = Object.fromEntries(GEN3_DATA.species.map((species) => [species.id, species]));
 
 const DEMO_SETS = [
   {
@@ -222,14 +221,19 @@ function speciesKey(species) {
   return normalize(species);
 }
 
+function getSpeciesData(species) {
+  return GEN3_SPECIES_BY_ID[speciesKey(species)];
+}
+
 function spriteUrl(species) {
-  const key = speciesKey(species);
+  const key = getSpeciesData(species)?.id || speciesKey(species);
   return key ? `https://play.pokemonshowdown.com/sprites/home-centered/${key}.png` : "";
 }
 
-function iconPosition(index) {
-  const x = -40 * ((index * 7) % 12);
-  const y = -30 * (38 + index * 3);
+function iconPosition(species) {
+  const num = getSpeciesData(species)?.num || 0;
+  const x = -40 * (num % 12);
+  const y = -30 * Math.floor(num / 12);
   return `${x}px ${y}px`;
 }
 
@@ -263,26 +267,53 @@ function natureMarks(nature) {
   return marks[nature] || [];
 }
 
+function calculateStat(stat, base, ev, nature) {
+  const iv = 31;
+  const level = 100;
+  const evBonus = Math.floor(clampNumber(ev || 0, 0, 252, 0) / 4);
+
+  if (stat === "hp") {
+    if (base === 1) return 1;
+    return Math.floor(((2 * base + iv + evBonus) * level) / 100) + level + 10;
+  }
+
+  const raw = Math.floor(((2 * base + iv + evBonus) * level) / 100) + 5;
+  const [boost, drop] = natureMarks(nature);
+  const label = STAT_LABELS[stat];
+  const multiplier = label === boost ? 1.1 : label === drop ? 0.9 : 1;
+  return Math.floor(raw * multiplier);
+}
+
 function statRows(slot) {
+  const species = getSpeciesData(slot.species);
+  if (!species) {
+    return `<span class="statrow statnote">Choose a Gen 3 Pokemon</span>`;
+  }
+
   const evs = parseEvs(slot.evs);
   const [boost, drop] = natureMarks(slot.nature);
-  return ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
-    .map((stat, index) => {
-      const ev = evs[stat];
-      const width = 16 + (Number(ev || 0) / 252) * 64 + index * 2;
-      const hue = 42 + width;
-      const mark = stat === boost ? "+" : stat === drop ? "-" : "";
-      return `<span class="statrow">
-        <label>${stat}</label>
+  return STAT_KEYS.map((stat) => {
+    const label = STAT_LABELS[stat];
+    const base = species.baseStats[stat];
+    const ev = evs[label];
+    const value = calculateStat(stat, base, Number(ev || 0), slot.nature);
+    const width = 10 + (base / 255) * 86;
+    const hue = Math.min(120, 28 + base * 0.58);
+    const mark = label === boost ? "+" : label === drop ? "-" : "";
+    return `<span class="statrow">
+        <label>${label}</label>
         <span class="statgraph"><span style="width:${width}px;background:hsl(${hue},40%,75%);"></span></span>
-        <em>${escapeHtml(ev)}</em><small>${mark}</small>
+        <em>${base}</em>
+        <strong>${escapeHtml(ev)}</strong>
+        <b>${value}</b>
+        <small>${mark}</small>
       </span>`;
     })
     .join("");
 }
 
 function typeIcons(species) {
-  const types = TYPE_MAP[speciesKey(species)] || [];
+  const types = getSpeciesData(species)?.types || [];
   return types
     .map((type) => `<span class="typeicon type-${type.toLowerCase()}">${escapeHtml(type)}</span>`)
     .join("");
@@ -396,10 +427,10 @@ function populateDatalist(id, values) {
 }
 
 function initReferenceData() {
-  populateDatalist("#speciesList", [...new Set(DEMO_SETS.map((set) => set.species))].sort());
-  populateDatalist("#itemList", [...new Set(DEMO_SETS.map((set) => set.item))].sort());
-  populateDatalist("#abilityList", [...new Set(DEMO_SETS.map((set) => set.ability))].sort());
-  populateDatalist("#moveList", [...new Set(DEMO_SETS.flatMap((set) => set.moves))].sort());
+  populateDatalist("#speciesList", GEN3_DATA.species.map((species) => species.name));
+  populateDatalist("#itemList", GEN3_DATA.items.map((item) => item.name));
+  populateDatalist("#abilityList", GEN3_DATA.abilities.map((ability) => ability.name));
+  populateDatalist("#moveList", GEN3_DATA.moves.map((move) => move.name));
 }
 
 function renderTeambar() {
@@ -411,7 +442,10 @@ function renderTeambar() {
     button.name = "selectPokemon";
     button.value = String(index);
     button.className = `pokemon${state.selectedSlot === index ? " active" : ""}${filled ? "" : " masked"}`;
-    button.innerHTML = `<span class="picon pokemonicon-${index}" style="background-position:${iconPosition(index)}"></span>${escapeHtml(
+    const species = getSpeciesData(slot.species);
+    button.innerHTML = `<span class="picon${species ? "" : " empty"}" style="background-position:${iconPosition(
+      slot.species,
+    )}"></span>${escapeHtml(
       slot.species || "Add Pokemon",
     )}`;
     button.addEventListener("click", () => {
@@ -514,7 +548,7 @@ function renderSelectedSet() {
         <div class="setrow">
           <label>Stats</label>
           <button class="textbox setstats" name="stats" type="button">
-            <span class="statrow statrow-head"><label></label><span></span><em>EV</em><small></small></span>
+            <span class="statrow statrow-head"><label></label><span></span><em>Base</em><strong>EV</strong><b>Stat</b><small></small></span>
             ${statRows(slot)}
           </button>
         </div>

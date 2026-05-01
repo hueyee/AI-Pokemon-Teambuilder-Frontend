@@ -161,6 +161,11 @@ p {
   background: transparent url("https://play.pokemonshowdown.com/sprites/pokemonicons-sheet.png?v21") no-repeat scroll 0 0;
 }
 
+.picon.empty {
+  background-image: url("https://play.pokemonshowdown.com/sprites/pokemonicons-pokeball-sheet.png");
+  background-position: -80px 4px !important;
+}
+
 .builder-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -269,7 +274,7 @@ label {
 
 .setchart {
   display: grid;
-  grid-template-columns: 178px minmax(210px, 1fr) minmax(180px, 1fr) 170px;
+  grid-template-columns: 178px minmax(210px, 1fr) minmax(180px, 1fr) 218px;
   gap: 8px;
   min-height: 322px;
   padding: 8px;
@@ -340,6 +345,10 @@ label {
 .type-normal { background: #8e8e73; }
 .type-grass { background: #579e3d; }
 .type-dragon { background: #5e45c8; }
+.type-bug { background: #8aa12a; }
+.type-fighting { background: #a84d3d; }
+.type-fire { background: #d5792f; }
+.type-ice { background: #65a9bc; }
 
 .setdetails,
 .setstats {
@@ -361,7 +370,7 @@ label {
 
 .statrow {
   display: grid;
-  grid-template-columns: 28px 1fr 32px 12px;
+  grid-template-columns: 30px minmax(38px, 1fr) 34px 32px 38px 12px;
   align-items: center;
   min-height: 20px;
   gap: 4px;
@@ -371,9 +380,21 @@ label {
   margin: 0;
 }
 
-.statrow em {
+.statrow em,
+.statrow strong,
+.statrow b {
   font-style: normal;
+  font-weight: 700;
   text-align: right;
+}
+
+.statrow strong {
+  font-weight: 400;
+}
+
+.statnote {
+  display: block;
+  color: var(--muted);
 }
 
 .statrow small {
