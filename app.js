@@ -28,9 +28,11 @@ const NATURES = [
   "Quirky",
 ];
 
+const DIRECT_BACKEND_URL = "https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net";
+
 const DEFAULT_CONFIG = {
-  backendUrl: "https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net",
-  apiKey: "key",
+  backendUrl: defaultBackendUrl(),
+  apiKey: "",
 };
 
 const STAT_KEYS = ["hp", "atk", "def", "spa", "spd", "spe"];
@@ -394,16 +396,37 @@ function setStatus(kind, text) {
 }
 
 function refreshConnectionStatus() {
-  const live = Boolean(els.backendUrl.value.trim() && els.apiKey.value.trim());
+  const live = Boolean(els.backendUrl.value.trim());
   setStatus(live ? "live" : "demo", live ? "Live" : "Demo");
 }
 
 function initConfig() {
   const config = window.APP_CONFIG || {};
-  els.backendUrl.value =
-    localStorage.getItem("pokemonBuilder.backendUrl") || config.backendUrl || DEFAULT_CONFIG.backendUrl;
+  const storedBackendUrl = localStorage.getItem("pokemonBuilder.backendUrl");
+  const configuredBackendUrl = config.backendUrl || DEFAULT_CONFIG.backendUrl;
+  const shouldUseSameOriginProxy =
+    isAzureStaticWebApp() && (!storedBackendUrl || stripTrailingSlash(storedBackendUrl) === DIRECT_BACKEND_URL);
+
+  els.backendUrl.value = shouldUseSameOriginProxy ? window.location.origin : storedBackendUrl || configuredBackendUrl;
   els.apiKey.value = localStorage.getItem("pokemonBuilder.apiKey") || config.apiKey || DEFAULT_CONFIG.apiKey;
   refreshConnectionStatus();
+}
+
+function defaultBackendUrl() {
+  if (typeof window !== "undefined" && isAzureStaticWebApp()) return window.location.origin;
+  return DIRECT_BACKEND_URL;
+}
+
+function stripTrailingSlash(value) {
+  return value.trim().replace(/\/$/, "");
+}
+
+function isAzureStaticWebApp() {
+  return (
+    typeof window !== "undefined" &&
+    window.location.protocol.startsWith("http") &&
+    window.location.hostname.endsWith(".azurestaticapps.net")
+  );
 }
 
 function setMessage(message, isError = false) {
@@ -696,19 +719,21 @@ function clampNumber(value, min, max, fallback) {
 }
 
 async function callBackend(payload) {
-  const backendUrl = els.backendUrl.value.trim().replace(/\/$/, "");
+  const backendUrl = stripTrailingSlash(els.backendUrl.value);
   const apiKey = els.apiKey.value.trim();
-  if (!backendUrl || !apiKey) return demoResponse(payload);
+  if (!backendUrl) return demoResponse(payload);
 
   const endpoint = state.mode === "generate" ? "/api/generate-team" : "/api/complete-team";
   setStatus("live", "Live");
 
+  const headers = {
+    "content-type": "application/json",
+  };
+  if (apiKey) headers["x-api-key"] = apiKey;
+
   const response = await fetch(`${backendUrl}${endpoint}`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 

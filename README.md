@@ -16,10 +16,11 @@ http://127.0.0.1:3000
 
 The app defaults to:
 
-- Backend URL: `https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net`
-- API Key: `key`, sent as `x-api-key`
+- Backend URL on Azure Static Web Apps: the app's own origin, using the included `/api/*` proxy functions
+- Backend URL locally: `https://ai-pokemon-model-backend-bfg2abbtambqb0h0.westus3-01.azurewebsites.net`
+- API Key: blank in the browser by default. The proxy sends `AI_POKEMON_BACKEND_API_KEY`, `API_KEY`, or the development fallback `key`.
 
-The browser stores edits to those fields in localStorage. Because this is a static frontend, any key used directly by the browser is visible to users. If the key becomes a real secret, put a small proxy/API layer in front of the model backend rather than shipping the secret in static assets.
+The browser stores edits to those fields in localStorage. Because this is a static frontend, any key used directly by the browser is visible to users. In Azure Static Web Apps, set `AI_POKEMON_BACKEND_API_KEY` as an application setting so the included proxy can keep the real key server-side.
 
 For deployment-time configuration, define `window.APP_CONFIG` before `app.js` runs:
 

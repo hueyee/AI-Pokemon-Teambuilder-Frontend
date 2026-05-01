@@ -1,7 +1,7 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/styles.css", "/app.js"]
+    "exclude": ["/styles.css", "/app.js", "/gen3-data.js", "/api/*"]
   },
   "mimeTypes": {
     ".js": "application/javascript",
