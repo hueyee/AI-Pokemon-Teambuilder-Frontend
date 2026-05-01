@@ -31,6 +31,21 @@ const DEFAULT_CONFIG = {
   apiKey: "key",
 };
 
+const TYPE_MAP = {
+  tyranitar: ["Rock", "Dark"],
+  skarmory: ["Steel", "Flying"],
+  swampert: ["Water", "Ground"],
+  blissey: ["Normal"],
+  gengar: ["Ghost", "Poison"],
+  metagross: ["Steel", "Psychic"],
+  salamence: ["Dragon", "Flying"],
+  zapdos: ["Electric", "Flying"],
+  dugtrio: ["Ground"],
+  starmie: ["Water", "Psychic"],
+  celebi: ["Psychic", "Grass"],
+  jirachi: ["Steel", "Psychic"],
+};
+
 const DEMO_SETS = [
   {
     species: "Tyranitar",
@@ -132,6 +147,7 @@ const DEMO_SETS = [
 
 const state = {
   mode: "complete",
+  selectedSlot: 0,
   slots: Array.from({ length: 6 }, () => emptySlot()),
   candidates: [],
 };
@@ -149,8 +165,8 @@ const els = {
   exportButton: document.querySelector("#exportButton"),
   sampleButton: document.querySelector("#sampleButton"),
   clearButton: document.querySelector("#clearButton"),
-  teamGrid: document.querySelector("#teamGrid"),
-  slotTemplate: document.querySelector("#slotTemplate"),
+  teambar: document.querySelector("#teambar"),
+  teamChart: document.querySelector("#teamChart"),
   modeTitle: document.querySelector("#modeTitle"),
   modeSubtitle: document.querySelector("#modeSubtitle"),
   candidateList: document.querySelector("#candidateList"),
@@ -160,6 +176,7 @@ const els = {
 
 function emptySlot() {
   return {
+    nickname: "",
     species: "",
     item: "",
     ability: "",
@@ -167,6 +184,18 @@ function emptySlot() {
     evs: "",
     moves: ["", "", "", ""],
   };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function normalize(value) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function titleCase(value) {
@@ -178,33 +207,101 @@ function titleCase(value) {
     .join(" ");
 }
 
-function normalize(value) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
 function slotIsFilled(slot) {
   return Boolean(
-    slot.species.trim() ||
-      slot.item.trim() ||
-      slot.ability.trim() ||
-      slot.evs.trim() ||
-      slot.moves.some((move) => move.trim()),
+    (slot.species || "").trim() ||
+      (slot.nickname || "").trim() ||
+      (slot.item || "").trim() ||
+      (slot.ability || "").trim() ||
+      (slot.evs || "").trim() ||
+      (slot.moves || []).some((move) => move.trim()),
   );
+}
+
+function speciesKey(species) {
+  return normalize(species);
+}
+
+function spriteUrl(species) {
+  const key = speciesKey(species);
+  return key ? `https://play.pokemonshowdown.com/sprites/home-centered/${key}.png` : "";
+}
+
+function iconPosition(index) {
+  const x = -40 * ((index * 7) % 12);
+  const y = -30 * (38 + index * 3);
+  return `${x}px ${y}px`;
+}
+
+function parseEvs(evs) {
+  const out = { HP: "", Atk: "", Def: "", SpA: "", SpD: "", Spe: "" };
+  evs.split("/").forEach((chunk) => {
+    const match = chunk.trim().match(/^(\d+)\s*(HP|Atk|Def|SpA|SpD|Spe)$/i);
+    if (match) {
+      const stat = Object.keys(out).find((key) => key.toLowerCase() === match[2].toLowerCase());
+      if (stat) out[stat] = match[1];
+    }
+  });
+  return out;
+}
+
+function natureMarks(nature) {
+  const marks = {
+    Adamant: ["Atk", "SpA"],
+    Modest: ["SpA", "Atk"],
+    Timid: ["Spe", "Atk"],
+    Jolly: ["Spe", "SpA"],
+    Bold: ["Def", "Atk"],
+    Impish: ["Def", "SpA"],
+    Calm: ["SpD", "Atk"],
+    Careful: ["SpD", "SpA"],
+    Relaxed: ["Def", "Spe"],
+    Sassy: ["SpD", "Spe"],
+    Brave: ["Atk", "Spe"],
+    Naive: ["Spe", "SpD"],
+  };
+  return marks[nature] || [];
+}
+
+function statRows(slot) {
+  const evs = parseEvs(slot.evs);
+  const [boost, drop] = natureMarks(slot.nature);
+  return ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
+    .map((stat, index) => {
+      const ev = evs[stat];
+      const width = 16 + (Number(ev || 0) / 252) * 64 + index * 2;
+      const hue = 42 + width;
+      const mark = stat === boost ? "+" : stat === drop ? "-" : "";
+      return `<span class="statrow">
+        <label>${stat}</label>
+        <span class="statgraph"><span style="width:${width}px;background:hsl(${hue},40%,75%);"></span></span>
+        <em>${escapeHtml(ev)}</em><small>${mark}</small>
+      </span>`;
+    })
+    .join("");
+}
+
+function typeIcons(species) {
+  const types = TYPE_MAP[speciesKey(species)] || [];
+  return types
+    .map((type) => `<span class="typeicon type-${type.toLowerCase()}">${escapeHtml(type)}</span>`)
+    .join("");
 }
 
 function slotToShowdown(slot) {
   if (!slotIsFilled(slot)) return "";
 
   const lines = [];
-  const species = slot.species.trim() || "Unknown";
-  const item = slot.item.trim();
-  lines.push(item ? `${species} @ ${item}` : species);
+  const species = (slot.species || "").trim() || "Unknown";
+  const nickname = (slot.nickname || "").trim();
+  const displayName = nickname && normalize(nickname) !== normalize(species) ? `${nickname} (${species})` : species;
+  const item = (slot.item || "").trim();
+  lines.push(item ? `${displayName} @ ${item}` : displayName);
 
-  if (slot.ability.trim()) lines.push(`Ability: ${slot.ability.trim()}`);
-  if (slot.evs.trim()) lines.push(`EVs: ${slot.evs.trim()}`);
+  if ((slot.ability || "").trim()) lines.push(`Ability: ${slot.ability.trim()}`);
+  if ((slot.evs || "").trim()) lines.push(`EVs: ${slot.evs.trim()}`);
   if (slot.nature && slot.nature !== "Hardy") lines.push(`${slot.nature} Nature`);
-
-  slot.moves
+  (slot.moves || [])
     .map((move) => move.trim())
     .filter(Boolean)
     .forEach((move) => lines.push(`- ${move}`));
@@ -228,7 +325,9 @@ function parseShowdown(text) {
     const lines = chunk.split("\n").map((line) => line.trim()).filter(Boolean);
     const first = lines.shift() || "";
     const [namePart, itemPart] = first.split(/\s+@\s+/);
-    slot.species = cleanSpeciesName(namePart || "");
+    const parsedName = cleanSpeciesName(namePart || "");
+    slot.species = parsedName.species;
+    slot.nickname = parsedName.nickname;
     slot.item = itemPart || "";
 
     lines.forEach((line) => {
@@ -250,10 +349,12 @@ function parseShowdown(text) {
 }
 
 function cleanSpeciesName(value) {
-  let next = value.trim();
-  const nicknameMatch = next.match(/\(([^)]+)\)/);
-  if (nicknameMatch) next = nicknameMatch[1];
-  return next.replace(/\s+\((M|F)\)$/i, "").trim();
+  let next = value.trim().replace(/\s+\((M|F)\)$/i, "");
+  const nicknameMatch = next.match(/^(.+?)\s+\(([^)]+)\)$/);
+  if (nicknameMatch) {
+    return { nickname: nicknameMatch[1].trim(), species: nicknameMatch[2].trim() };
+  }
+  return { nickname: "", species: next };
 }
 
 function setStatus(kind, text) {
@@ -276,7 +377,7 @@ function initConfig() {
 
 function setMessage(message, isError = false) {
   els.messageCard.textContent = message;
-  els.messageCard.className = `message-card${isError ? " error" : ""}`;
+  els.messageCard.className = `result message-result${isError ? " error" : ""}`;
   els.messageCard.hidden = false;
 }
 
@@ -295,85 +396,164 @@ function populateDatalist(id, values) {
 }
 
 function initReferenceData() {
-  const species = [...new Set(DEMO_SETS.map((set) => set.species))].sort();
-  const items = [...new Set(DEMO_SETS.map((set) => set.item))].sort();
-  const abilities = [...new Set(DEMO_SETS.map((set) => set.ability))].sort();
-  const moves = [...new Set(DEMO_SETS.flatMap((set) => set.moves))].sort();
-
-  populateDatalist("#speciesList", species);
-  populateDatalist("#itemList", items);
-  populateDatalist("#abilityList", abilities);
-  populateDatalist("#moveList", moves);
+  populateDatalist("#speciesList", [...new Set(DEMO_SETS.map((set) => set.species))].sort());
+  populateDatalist("#itemList", [...new Set(DEMO_SETS.map((set) => set.item))].sort());
+  populateDatalist("#abilityList", [...new Set(DEMO_SETS.map((set) => set.ability))].sort());
+  populateDatalist("#moveList", [...new Set(DEMO_SETS.flatMap((set) => set.moves))].sort());
 }
 
-function renderTeam() {
-  els.teamGrid.innerHTML = "";
-
+function renderTeambar() {
+  els.teambar.innerHTML = "";
   state.slots.forEach((slot, index) => {
-    const node = els.slotTemplate.content.firstElementChild.cloneNode(true);
     const filled = slotIsFilled(slot);
-    node.classList.toggle("filled", filled);
-    node.querySelector(".slot-label").textContent = `Slot ${index + 1}`;
-    node.querySelector(".slot-name").textContent = filled ? slot.species || "Partial Set" : "Masked Slot";
-
-    const species = node.querySelector(".species-input");
-    const item = node.querySelector(".item-input");
-    const ability = node.querySelector(".ability-input");
-    const nature = node.querySelector(".nature-input");
-    const evs = node.querySelector(".evs-input");
-    const moves = node.querySelectorAll(".move-input");
-
-    species.value = slot.species;
-    item.value = slot.item;
-    ability.value = slot.ability;
-    evs.value = slot.evs;
-
-    nature.innerHTML = "";
-    NATURES.forEach((name) => {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      nature.append(option);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.name = "selectPokemon";
+    button.value = String(index);
+    button.className = `pokemon${state.selectedSlot === index ? " active" : ""}${filled ? "" : " masked"}`;
+    button.innerHTML = `<span class="picon pokemonicon-${index}" style="background-position:${iconPosition(index)}"></span>${escapeHtml(
+      slot.species || "Add Pokemon",
+    )}`;
+    button.addEventListener("click", () => {
+      state.selectedSlot = index;
+      renderAll();
     });
-    nature.value = slot.nature || "Hardy";
-
-    moves.forEach((input, moveIndex) => {
-      input.value = slot.moves[moveIndex] || "";
-      input.addEventListener("input", () => {
-        state.slots[index].moves[moveIndex] = input.value;
-        syncExportQuietly();
-        renderSlotHeader(node, state.slots[index]);
-      });
-    });
-
-    [
-      [species, "species"],
-      [item, "item"],
-      [ability, "ability"],
-      [nature, "nature"],
-      [evs, "evs"],
-    ].forEach(([input, key]) => {
-      input.addEventListener("input", () => {
-        state.slots[index][key] = input.value;
-        syncExportQuietly();
-        renderSlotHeader(node, state.slots[index]);
-      });
-    });
-
-    node.querySelector(".clear-slot").addEventListener("click", () => {
-      state.slots[index] = emptySlot();
-      syncExportQuietly();
-      renderTeam();
-    });
-
-    els.teamGrid.append(node);
+    els.teambar.append(button);
   });
 }
 
-function renderSlotHeader(node, slot) {
-  const filled = slotIsFilled(slot);
-  node.classList.toggle("filled", filled);
-  node.querySelector(".slot-name").textContent = filled ? slot.species || "Partial Set" : "Masked Slot";
+function renderSelectedSet() {
+  const slot = state.slots[state.selectedSlot];
+  const sprite = spriteUrl(slot.species);
+  const natureOptions = NATURES.map(
+    (nature) => `<option value="${nature}"${nature === slot.nature ? " selected" : ""}>${nature}</option>`,
+  ).join("");
+
+  els.teamChart.innerHTML = `<li value="${state.selectedSlot + 1}">
+    <div class="setmenu">
+      <button name="copySet" type="button">Copy</button>
+      <button name="importSet" type="button">Import/Export</button>
+      <button name="moveSet" type="button">Move</button>
+      <button name="deleteSet" type="button">Delete</button>
+    </div>
+    <div class="setchart-nickname">
+      <label>Nickname</label>
+      <input type="text" name="nickname" class="textbox chartinput" value="${escapeHtml(slot.nickname)}" placeholder="${escapeHtml(
+        slot.species || "Nickname",
+      )}" autocomplete="off">
+    </div>
+    <div class="setchart" style="${sprite ? `background-image:url(${sprite})` : ""}">
+      <div class="setcol setcol-icon">
+        <div class="setcell setcell-pokemon">
+          <label>Pokemon</label>
+          <input type="text" name="species" class="textbox chartinput" list="speciesList" value="${escapeHtml(
+            slot.species,
+          )}" autocomplete="off">
+        </div>
+      </div>
+      <div class="setcol setcol-details">
+        <div class="setrow">
+          <div class="setcell setcell-details">
+            <label>Details</label>
+            <button class="textbox setdetails" tabindex="-1" name="details" type="button">
+              <span class="detailcell detailcell-first"><label>Level</label>100</span>
+              <span class="detailcell"><label>Gender</label>-</span>
+              <span class="detailcell"><label>Shiny</label>No</span>
+            </button>
+          </div>
+        </div>
+        <div class="setrow-icons">
+          <span class="itemicon"></span>
+          <span class="setcell-typeicons">${typeIcons(slot.species)}</span>
+        </div>
+        <div class="setrow two">
+          <div class="setcell setcell-item">
+            <label>Item</label>
+            <input type="text" name="item" class="textbox chartinput" list="itemList" value="${escapeHtml(
+              slot.item,
+            )}" autocomplete="off">
+          </div>
+          <div class="setcell setcell-ability">
+            <label>Ability</label>
+            <input type="text" name="ability" class="textbox chartinput" list="abilityList" value="${escapeHtml(
+              slot.ability,
+            )}" autocomplete="off">
+          </div>
+        </div>
+        <div class="setrow two">
+          <div class="setcell">
+            <label>Nature</label>
+            <select name="nature" class="textbox chartinput">${natureOptions}</select>
+          </div>
+          <div class="setcell">
+            <label>EVs</label>
+            <input type="text" name="evs" class="textbox chartinput" value="${escapeHtml(
+              slot.evs,
+            )}" placeholder="252 Atk / 4 Def / 252 Spe" autocomplete="off">
+          </div>
+        </div>
+      </div>
+      <div class="setcol setcol-moves">
+        <div class="setcell">
+          <label>Moves</label>
+          <input type="text" name="move0" class="textbox chartinput" list="moveList" value="${escapeHtml(
+            slot.moves[0] || "",
+          )}" autocomplete="off">
+        </div>
+        ${[1, 2, 3]
+          .map(
+            (moveIndex) => `<div class="setcell">
+              <input type="text" name="move${moveIndex}" class="textbox chartinput" list="moveList" value="${escapeHtml(
+                slot.moves[moveIndex] || "",
+              )}" autocomplete="off">
+            </div>`,
+          )
+          .join("")}
+      </div>
+      <div class="setcol setcol-stats">
+        <div class="setrow">
+          <label>Stats</label>
+          <button class="textbox setstats" name="stats" type="button">
+            <span class="statrow statrow-head"><label></label><span></span><em>EV</em><small></small></span>
+            ${statRows(slot)}
+          </button>
+        </div>
+      </div>
+    </div>
+  </li>`;
+
+  els.teamChart.querySelectorAll(".chartinput").forEach((input) => {
+    input.addEventListener("input", () => updateSlotFromInput(input));
+  });
+  els.teamChart.querySelector("[name='copySet']").addEventListener("click", () => copyText(slotToShowdown(slot)));
+  els.teamChart.querySelector("[name='importSet']").addEventListener("click", () => els.showdownText.focus());
+  els.teamChart.querySelector("[name='moveSet']").addEventListener("click", moveSelectedSlot);
+  els.teamChart.querySelector("[name='deleteSet']").addEventListener("click", () => {
+    state.slots[state.selectedSlot] = emptySlot();
+    syncExportQuietly();
+    renderAll();
+  });
+}
+
+function updateSlotFromInput(input) {
+  const slot = state.slots[state.selectedSlot];
+  const name = input.name;
+  if (name.startsWith("move")) {
+    slot.moves[Number(name.replace("move", ""))] = input.value;
+  } else {
+    slot[name] = input.value;
+  }
+  syncExportQuietly();
+  renderTeambar();
+  if (["species", "nature", "evs"].includes(name)) renderSelectedSet();
+}
+
+function moveSelectedSlot() {
+  const next = (state.selectedSlot + 1) % state.slots.length;
+  [state.slots[state.selectedSlot], state.slots[next]] = [state.slots[next], state.slots[state.selectedSlot]];
+  state.selectedSlot = next;
+  syncExportQuietly();
+  renderAll();
 }
 
 function renderMode() {
@@ -388,64 +568,55 @@ function renderMode() {
   els.modeTitle.textContent = isGenerate ? "Team Generator" : "Mask Fill";
   els.modeSubtitle.textContent = isGenerate
     ? "The model starts from an empty shell."
-    : "Empty slots are treated as masked team positions.";
+    : "Empty team slots are treated as masked positions.";
   els.numSamples.value = isGenerate ? "256" : "64";
 }
 
 function renderCandidates(candidates) {
+  const heading = els.candidateList.querySelector(".result-heading");
   els.candidateList.innerHTML = "";
+  els.candidateList.append(heading);
   els.resultCount.textContent = `${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`;
 
   if (!candidates.length) {
+    els.candidateList.append(els.messageCard);
     setMessage("No candidates returned.");
     return;
   }
 
   clearMessage();
   candidates.forEach((candidate, index) => {
-    const card = document.createElement("article");
-    card.className = "candidate-card";
-
-    const title = document.createElement("div");
-    title.className = "panel-title-row";
-    title.innerHTML = `<h3>Candidate ${index + 1}</h3>`;
-
-    const actions = document.createElement("div");
-    actions.className = "candidate-actions";
-
-    const load = document.createElement("button");
-    load.className = "ghost-button";
-    load.type = "button";
-    load.textContent = "Load";
-    load.addEventListener("click", () => loadCandidate(candidate));
-
-    const copy = document.createElement("button");
-    copy.className = "ghost-button";
-    copy.type = "button";
-    copy.textContent = "Copy";
-    copy.addEventListener("click", () => copyText(candidate.showdown || ""));
-
-    actions.append(load, copy);
-    title.append(actions);
-
-    const meta = document.createElement("div");
-    meta.className = "candidate-meta";
+    const li = document.createElement("li");
+    li.className = `result candidate-entry${index === 0 ? " cur" : ""}`;
     const score = Number.isFinite(candidate.rank_score) ? candidate.rank_score.toFixed(3) : "demo";
-    meta.textContent = `Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}`;
-
-    const pre = document.createElement("pre");
-    pre.textContent = candidate.showdown || JSON.stringify(candidate, null, 2);
-
-    card.append(title, meta, pre);
-    els.candidateList.append(card);
+    li.innerHTML = `<div class="candidate-body">
+      <div class="candidate-head">
+        <h3>Candidate ${index + 1}</h3>
+        <span class="result-actions">
+          <button class="button" type="button" data-load="${index}">Load</button>
+          <button class="button" type="button" data-copy="${index}">Copy</button>
+        </span>
+      </div>
+      <div class="candidate-meta">Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
+      <pre>${escapeHtml(candidate.showdown || JSON.stringify(candidate, null, 2))}</pre>
+    </div>`;
+    li.querySelector("[data-load]").addEventListener("click", () => loadCandidate(candidate));
+    li.querySelector("[data-copy]").addEventListener("click", () => copyText(candidate.showdown || ""));
+    els.candidateList.append(li);
   });
+}
+
+function renderAll() {
+  renderTeambar();
+  renderSelectedSet();
 }
 
 function loadCandidate(candidate) {
   const parsed = parseShowdown(candidate.showdown || "");
   state.slots = Array.from({ length: 6 }, (_, index) => parsed[index] || emptySlot());
+  state.selectedSlot = 0;
   els.showdownText.value = slotsToShowdown(state.slots);
-  renderTeam();
+  renderAll();
 }
 
 async function copyText(text) {
@@ -460,7 +631,8 @@ function syncExportQuietly() {
 function importFromText() {
   const parsed = parseShowdown(els.showdownText.value);
   state.slots = Array.from({ length: 6 }, (_, index) => parsed[index] || emptySlot());
-  renderTeam();
+  state.selectedSlot = 0;
+  renderAll();
 }
 
 function exportToText() {
@@ -476,9 +648,7 @@ function buildPayload() {
 
   if (state.mode === "complete") {
     const showdown = slotsToShowdown(state.slots);
-    if (!showdown.trim()) {
-      throw new Error("Add at least one team slot before completing.");
-    }
+    if (!showdown.trim()) throw new Error("Add at least one team slot before completing.");
     return { ...base, showdown };
   }
 
@@ -559,9 +729,7 @@ async function run() {
     const data = await callBackend(payload);
     state.candidates = data.candidates || [];
     renderCandidates(state.candidates);
-    if (data.warnings?.length) {
-      setMessage(data.warnings.join(" "));
-    }
+    if (data.warnings?.length) setMessage(data.warnings.join(" "));
   } catch (error) {
     setStatus("error", "Error");
     renderCandidates([]);
@@ -576,17 +744,20 @@ function loadSample() {
   state.slots = [DEMO_SETS[0], DEMO_SETS[2], emptySlot(), emptySlot(), emptySlot(), emptySlot()].map((slot) => ({
     ...emptySlot(),
     ...slot,
+    nickname: slot.species || "",
     moves: [...(slot.moves || ["", "", "", ""])],
   }));
+  state.selectedSlot = 0;
   syncExportQuietly();
-  renderTeam();
+  renderAll();
 }
 
 function clearAll() {
   state.slots = Array.from({ length: 6 }, () => emptySlot());
+  state.selectedSlot = 0;
   state.candidates = [];
   els.showdownText.value = "";
-  renderTeam();
+  renderAll();
   renderCandidates([]);
   setMessage("Add a partial team or generate from scratch.");
 }
@@ -618,5 +789,4 @@ initReferenceData();
 initConfig();
 bindEvents();
 renderMode();
-renderTeam();
-els.resultCount.textContent = "0 candidates";
+renderAll();
