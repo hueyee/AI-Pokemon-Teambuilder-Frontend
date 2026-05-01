@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gen 3 Pokemon Builder</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Team controls">
+        <div class="brand-block">
+          <span class="format-pill">ADV OU</span>
+          <h1>Gen 3 Team Builder</h1>
+        </div>
+
+        <div class="mode-control" role="tablist" aria-label="Builder mode">
+          <button class="segmented active" type="button" data-mode="complete" role="tab" aria-selected="true">
+            Complete
+          </button>
+          <button class="segmented" type="button" data-mode="generate" role="tab" aria-selected="false">
+            Generate
+          </button>
+        </div>
+
+        <button class="primary-action" id="runButton" type="button">Complete Team</button>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar" aria-label="Settings and import export">
+          <div class="panel settings-panel">
+            <div class="panel-title-row">
+              <h2>Connection</h2>
+              <span class="status-chip demo" id="connectionState">Demo</span>
+            </div>
+            <label>
+              Backend URL
+              <input id="backendUrl" type="url" placeholder="http://127.0.0.1:8000" autocomplete="off" />
+            </label>
+            <label>
+              API Key
+              <input id="apiKey" type="password" placeholder="x-api-key" autocomplete="off" />
+            </label>
+            <div class="settings-grid">
+              <label>
+                Candidates
+                <input id="numCandidates" type="number" min="1" max="20" value="10" />
+              </label>
+              <label>
+                Samples
+                <input id="numSamples" type="number" min="1" max="512" value="64" />
+              </label>
+            </div>
+          </div>
+
+          <div class="panel import-panel">
+            <div class="panel-title-row">
+              <h2>Import Export</h2>
+              <div class="mini-actions">
+                <button class="ghost-button" id="importButton" type="button">Import</button>
+                <button class="ghost-button" id="exportButton" type="button">Export</button>
+              </div>
+            </div>
+            <textarea id="showdownText" spellcheck="false" placeholder="Tyranitar @ Leftovers&#10;Ability: Sand Stream&#10;Adamant Nature&#10;- Rock Slide&#10;- Earthquake"></textarea>
+          </div>
+        </aside>
+
+        <section class="builder-area" aria-label="Team builder">
+          <div class="team-toolbar">
+            <div>
+              <h2 id="modeTitle">Mask Fill</h2>
+              <p id="modeSubtitle">Empty slots are treated as masked team positions.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="ghost-button" id="sampleButton" type="button">Sample</button>
+              <button class="ghost-button" id="clearButton" type="button">Clear</button>
+            </div>
+          </div>
+
+          <div class="team-grid" id="teamGrid"></div>
+        </section>
+      </section>
+
+      <section class="results-panel" aria-live="polite">
+        <div class="panel-title-row">
+          <h2>Results</h2>
+          <span class="status-chip" id="resultCount">0 candidates</span>
+        </div>
+        <div class="message-card" id="messageCard">
+          Add a partial team or generate from scratch.
+        </div>
+        <div class="candidate-list" id="candidateList"></div>
+      </section>
+    </main>
+
+    <template id="slotTemplate">
+      <article class="slot-card">
+        <div class="slot-head">
+          <div>
+            <span class="slot-label"></span>
+            <h3 class="slot-name">Masked Slot</h3>
+          </div>
+          <button class="icon-button clear-slot" type="button" title="Clear slot" aria-label="Clear slot">x</button>
+        </div>
+
+        <div class="field-row">
+          <label>
+            Pokemon
+            <input class="species-input" list="speciesList" autocomplete="off" />
+          </label>
+          <label>
+            Item
+            <input class="item-input" list="itemList" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label>
+            Ability
+            <input class="ability-input" list="abilityList" autocomplete="off" />
+          </label>
+          <label>
+            Nature
+            <select class="nature-input"></select>
+          </label>
+        </div>
+
+        <label>
+          EVs
+          <input class="evs-input" placeholder="252 Atk / 4 Def / 252 Spe" autocomplete="off" />
+        </label>
+
+        <div class="moves-grid">
+          <label>
+            Move 1
+            <input class="move-input" list="moveList" autocomplete="off" />
+          </label>
+          <label>
+            Move 2
+            <input class="move-input" list="moveList" autocomplete="off" />
+          </label>
+          <label>
+            Move 3
+            <input class="move-input" list="moveList" autocomplete="off" />
+          </label>
+          <label>
+            Move 4
+            <input class="move-input" list="moveList" autocomplete="off" />
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <datalist id="speciesList"></datalist>
+    <datalist id="itemList"></datalist>
+    <datalist id="abilityList"></datalist>
+    <datalist id="moveList"></datalist>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
