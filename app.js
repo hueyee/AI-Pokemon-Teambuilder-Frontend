@@ -248,7 +248,7 @@ function emptySlot() {
     species: "",
     item: "",
     ability: "",
-    nature: "Hardy",
+    nature: "",
     evs: "",
     moves: ["", "", "", ""],
   };
@@ -620,7 +620,7 @@ function nextChartInput(input) {
   return fields[index + 1] || null;
 }
 
-function slotToShowdown(slot) {
+function slotToShowdown(slot, { includeNature = true, includeEvs = true } = {}) {
   if (!slotIsFilled(slot)) return "";
 
   const lines = [];
@@ -631,8 +631,8 @@ function slotToShowdown(slot) {
   lines.push(item ? `${displayName} @ ${item}` : displayName);
 
   if ((slot.ability || "").trim()) lines.push(`Ability: ${slot.ability.trim()}`);
-  if ((slot.evs || "").trim()) lines.push(`EVs: ${slot.evs.trim()}`);
-  if (slot.nature && slot.nature !== "Hardy") lines.push(`${slot.nature} Nature`);
+  if (includeEvs && (slot.evs || "").trim()) lines.push(`EVs: ${slot.evs.trim()}`);
+  if (includeNature && slot.nature && slot.nature !== "Hardy") lines.push(`${slot.nature} Nature`);
   (slot.moves || [])
     .map((move) => move.trim())
     .filter(Boolean)
@@ -641,8 +641,8 @@ function slotToShowdown(slot) {
   return lines.join("\n");
 }
 
-function slotsToShowdown(slots) {
-  return slots.map(slotToShowdown).filter(Boolean).join("\n\n");
+function slotsToShowdown(slots, options) {
+  return slots.map((slot) => slotToShowdown(slot, options)).filter(Boolean).join("\n\n");
 }
 
 function parseShowdown(text) {
@@ -780,9 +780,11 @@ function renderTeambar() {
 function renderSelectedSet() {
   const slot = state.slots[state.selectedSlot];
   const sprite = spriteUrl(slot.species);
-  const natureOptions = NATURES.map(
-    (nature) => `<option value="${nature}"${nature === slot.nature ? " selected" : ""}>${nature}</option>`,
-  ).join("");
+  const natureOptions =
+    `<option value=""${!slot.nature ? " selected" : ""}>—</option>` +
+    NATURES.map(
+      (nature) => `<option value="${nature}"${nature === slot.nature ? " selected" : ""}>${nature}</option>`,
+    ).join("");
 
   els.teamChart.innerHTML = `<li value="${state.selectedSlot + 1}">
     <div class="setmenu">
@@ -1136,7 +1138,7 @@ function buildPayload() {
   };
 
   if (state.mode === "complete") {
-    const showdown = slotsToShowdown(state.slots);
+    const showdown = slotsToShowdown(state.slots, { includeNature: false, includeEvs: false });
     if (!showdown.trim()) throw new Error("Add at least one team slot before completing.");
     return { ...base, showdown };
   }
