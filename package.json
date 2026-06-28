@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node --check app.js && node --check team-client.js",
     "test": "node --test"
   }
 }
