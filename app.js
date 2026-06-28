@@ -1,4 +1,5 @@
 import { GEN3_DATA } from "./gen3-data.js";
+import { requestTeam } from "./team-client.js";
 
 const NATURES = [
   "Hardy",
@@ -219,6 +220,7 @@ const state = {
 
 let activeSpeciesAutocomplete = null;
 let activeChartInput = null;
+let activeRequest = null;
 
 const els = {
   modeButtons: document.querySelectorAll("[data-mode]"),
@@ -1150,7 +1152,7 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, next));
 }
 
-async function callBackend(payload) {
+async function callBackend(payload, options = {}) {
   const backendUrl = stripTrailingSlash(els.backendUrl.value);
   const apiKey = els.apiKey.value.trim();
   if (!backendUrl) return demoResponse(payload);
@@ -1158,24 +1160,14 @@ async function callBackend(payload) {
   const endpoint = state.mode === "generate" ? "/api/generate-team" : "/api/complete-team";
   setStatus("live", "Live");
 
-  const headers = {
-    "content-type": "application/json",
-  };
-  if (apiKey) headers["x-api-key"] = apiKey;
-
-  const response = await fetch(`${backendUrl}${endpoint}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
+  return requestTeam({
+    backendUrl,
+    endpoint,
+    payload,
+    apiKey,
+    signal: options.signal,
+    onProgress: options.onProgress,
   });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = data?.detail?.message || data?.error?.message || `Request failed with ${response.status}`;
-    throw new Error(message);
-  }
-
-  return data;
 }
 
 function demoResponse(payload) {
@@ -1211,24 +1203,62 @@ function rotate(items, offset) {
 }
 
 async function run() {
-  els.runButton.disabled = true;
-  els.runButton.textContent = state.mode === "generate" ? "Generating..." : "Completing...";
-  setMessage("Working...");
+  if (activeRequest) {
+    cancelActiveRequest("Request canceled.");
+    return;
+  }
+
+  const request = {
+    controller: new AbortController(),
+    mode: state.mode,
+  };
+  activeRequest = request;
+  els.runButton.disabled = false;
+  els.runButton.textContent = "Cancel";
+  setMessage(request.mode === "generate" ? "Generating team..." : "Completing team...");
 
   try {
     const payload = buildPayload();
-    const data = await callBackend(payload);
+    const data = await callBackend(payload, {
+      signal: request.controller.signal,
+      onProgress: (status) => {
+        if (activeRequest === request) {
+          setMessage(`${request.mode === "generate" ? "Generating team" : "Completing team"}... ${status}`);
+        }
+      },
+    });
+    if (activeRequest !== request) return;
     state.candidates = data.candidates || [];
     renderCandidates(state.candidates);
     if (data.warnings?.length) setMessage(data.warnings.join(" "));
   } catch (error) {
+    if (isAbortError(error) || activeRequest !== request) return;
     setStatus("error", "Error");
     renderCandidates([]);
     setMessage(error.message || "Something went wrong.", true);
   } finally {
-    els.runButton.disabled = false;
-    els.runButton.textContent = state.mode === "generate" ? "Generate Team" : "Complete Team";
+    if (activeRequest === request) {
+      activeRequest = null;
+      restoreRunButton();
+    }
   }
+}
+
+function cancelActiveRequest(message = "") {
+  if (!activeRequest) return;
+  activeRequest.controller.abort();
+  activeRequest = null;
+  restoreRunButton();
+  if (message) setMessage(message);
+}
+
+function restoreRunButton() {
+  els.runButton.disabled = false;
+  els.runButton.textContent = state.mode === "generate" ? "Generate Team" : "Complete Team";
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
 }
 
 function loadSample() {
@@ -1244,6 +1274,7 @@ function loadSample() {
 }
 
 function clearAll() {
+  cancelActiveRequest();
   state.slots = Array.from({ length: 6 }, () => emptySlot());
   state.selectedSlot = 0;
   state.candidates = [];
@@ -1256,6 +1287,7 @@ function clearAll() {
 function bindEvents() {
   els.modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
+      cancelActiveRequest();
       state.mode = button.dataset.mode;
       renderMode();
     });
@@ -1266,6 +1298,7 @@ function bindEvents() {
   els.exportButton.addEventListener("click", exportToText);
   els.sampleButton.addEventListener("click", loadSample);
   els.clearButton.addEventListener("click", clearAll);
+  window.addEventListener("pagehide", () => cancelActiveRequest());
 
   [els.backendUrl, els.apiKey].forEach((input) => {
     input.addEventListener("input", () => {
