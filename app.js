@@ -1078,10 +1078,11 @@ function renderCandidates(candidates) {
     const li = document.createElement("li");
     li.className = `result candidate-entry${index === 0 ? " cur" : ""}`;
     const score = Number.isFinite(candidate.rank_score) ? candidate.rank_score.toFixed(3) : "demo";
+    const leadLabel = candidateLeadLabel(candidate);
     li.innerHTML = `<div class="candidate-body">
       <div class="candidate-head">
         <h3>Candidate ${index + 1}</h3>
-        <div class="candidate-meta">Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
+        <div class="candidate-meta">Lead ${escapeHtml(leadLabel)} | Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
       </div>
       <span class="candidate-actions">
         <button class="button" type="button" data-load="${index}">Load</button>
@@ -1093,6 +1094,14 @@ function renderCandidates(candidates) {
     li.querySelector("[data-copy]").addEventListener("click", () => copyText(candidate.showdown || ""));
     els.candidateList.append(li);
   });
+}
+
+function candidateLeadLabel(candidate) {
+  if (candidate?.lead?.species) return candidate.lead.species;
+  const parsed = parseShowdown(candidate?.showdown || "");
+  if (parsed[0]?.species) return parsed[0].species;
+  if (Array.isArray(candidate?.set_ids) && candidate.set_ids.length) return `Set ${candidate.set_ids[0]}`;
+  return "slot 1";
 }
 
 function renderAll() {
