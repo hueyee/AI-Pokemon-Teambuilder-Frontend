@@ -647,6 +647,65 @@ function slotsToShowdown(slots) {
   return slots.map(slotToShowdown).filter(Boolean).join("\n\n");
 }
 
+function spreadToObject(value) {
+  const text = (value || "").trim();
+  if (!text) return null;
+  const output = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+  const statMap = {
+    hp: "hp",
+    atk: "atk",
+    attack: "atk",
+    def: "def",
+    defense: "def",
+    spa: "spa",
+    spatk: "spa",
+    "sp.atk": "spa",
+    "sp atk": "spa",
+    "special attack": "spa",
+    spd: "spd",
+    spdef: "spd",
+    "sp.def": "spd",
+    "sp def": "spd",
+    "special defense": "spd",
+    spe: "spe",
+    speed: "spe",
+  };
+
+  text.split("/").forEach((part) => {
+    const match = part.trim().match(/^(\d+)\s+(.+)$/);
+    if (!match) return;
+    const value = Number.parseInt(match[1], 10);
+    const label = match[2].trim().toLowerCase();
+    const statKey = statMap[label] || statMap[normalize(label)];
+    if (Number.isFinite(value) && statKey) output[statKey] = value;
+  });
+  return output;
+}
+
+function slotToPartialSet(slot, index) {
+  if (!slotIsFilled(slot)) return null;
+  const species = (slot.species || "").trim();
+  if (!species) throw new Error(`Slot ${index + 1} needs a Pokémon before it can be completed.`);
+
+  const partial = { species };
+  if ((slot.item || "").trim()) partial.item = slot.item.trim();
+  if ((slot.ability || "").trim()) partial.ability = slot.ability.trim();
+  if (slot.nature && slot.nature !== "Hardy") partial.nature = slot.nature;
+  const evs = spreadToObject(slot.evs);
+  if (evs) partial.evs = evs;
+  if (slot.ivs) {
+    const ivs = spreadToObject(slot.ivs);
+    if (ivs) partial.ivs = ivs;
+  }
+  const moves = (slot.moves || []).map((move) => move.trim()).filter(Boolean);
+  if (moves.length) partial.moves = moves;
+  return partial;
+}
+
+function slotsToPartialSets(slots) {
+  return slots.map(slotToPartialSet).filter(Boolean);
+}
+
 function parseShowdown(text) {
   const chunks = text
     .replace(/\r\n/g, "\n")
@@ -1079,10 +1138,11 @@ function renderCandidates(candidates) {
     li.className = `result candidate-entry${index === 0 ? " cur" : ""}`;
     const score = Number.isFinite(candidate.rank_score) ? candidate.rank_score.toFixed(3) : "demo";
     const leadLabel = candidateLeadLabel(candidate);
+    const partialLabel = candidatePartialLabel(candidate);
     li.innerHTML = `<div class="candidate-body">
       <div class="candidate-head">
         <h3>Candidate ${index + 1}</h3>
-        <div class="candidate-meta">Lead ${escapeHtml(leadLabel)} | Score ${score}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
+        <div class="candidate-meta">Lead ${escapeHtml(leadLabel)} | Score ${score}${partialLabel ? ` | ${escapeHtml(partialLabel)}` : ""}${candidate.set_ids ? ` | Set IDs ${candidate.set_ids.join(", ")}` : ""}</div>
       </div>
       <span class="candidate-actions">
         <button class="button" type="button" data-load="${index}">Load</button>
@@ -1102,6 +1162,17 @@ function candidateLeadLabel(candidate) {
   if (parsed[0]?.species) return parsed[0].species;
   if (Array.isArray(candidate?.set_ids) && candidate.set_ids.length) return `Set ${candidate.set_ids[0]}`;
   return "slot 1";
+}
+
+function candidatePartialLabel(candidate) {
+  const partialSlots = candidate?.generation_diagnostics?.partial_slots;
+  if (!Array.isArray(partialSlots) || !partialSlots.length) return "";
+  const exact = partialSlots.filter((slot) => slot.resolution_strategy === "exact_fixed").length;
+  const centroid = partialSlots.filter((slot) => slot.resolution_strategy === "centroid_conditioned").length;
+  const parts = [];
+  if (exact) parts.push(`${exact} exact`);
+  if (centroid) parts.push(`${centroid} completed`);
+  return parts.length ? `Partial ${parts.join(", ")}` : "";
 }
 
 function renderAll() {
@@ -1147,9 +1218,9 @@ function buildPayload() {
   };
 
   if (state.mode === "complete") {
-    const showdown = slotsToShowdown(state.slots);
-    if (!showdown.trim()) throw new Error("Add at least one team slot before completing.");
-    return { ...base, showdown };
+    const partial_sets = slotsToPartialSets(state.slots);
+    if (!partial_sets.length) throw new Error("Add at least one team slot before completing.");
+    return { ...base, partial_sets };
   }
 
   return base;
